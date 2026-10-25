@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111318">
+<title>IRON</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#15171c; --mute:#6b7280; --line:#e5e7eb; --accent:#d9480f; --good:#2f9e44; --mid:#f08c00; --bad:#e03131; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111318; --card:#1b1e25; --ink:#eef0f3; --mute:#9aa1ad; --line:#2b2f38; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; padding-bottom:80px; }
+  header { padding:14px 16px 4px; font-weight:800; letter-spacing:.15em; color:var(--accent); }
+  main { padding:0 16px; max-width:640px; margin:0 auto; }
+  h2 { margin:6px 0; font-size:20px; } h3 { margin:0 0 6px; font-size:16px; display:flex; align-items:center; gap:8px; }
+  small { color:var(--mute); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin:12px 0; }
+  .session.hard { border-left:4px solid var(--bad); } .session.moderate { border-left:4px solid var(--mid); } .session.easy { border-left:4px solid var(--good); }
+  .session.done { opacity:.75; } .session.skipped { opacity:.5; }
+  .shead { display:flex; gap:10px; align-items:flex-start; } .shead > div { flex:1; } .icon { font-size:24px; } .status { font-size:20px; }
+  .daynav { display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:center; margin-top:4px; }
+  .daynav button { font-size:22px; width:44px; height:44px; }
+  label { display:block; font-size:12px; color:var(--mute); margin:6px 0; }
+  input[type=number], input[type=text], input[type=date] { width:100%; padding:10px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); }
+  .lifts input[type=number] { width:80px; padding:6px; }
+  .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; } .grid2, .logrow { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media (max-width:420px) { .grid4 { grid-template-columns:1fr 1fr; } }
+  button, .btnlike { padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:15px; cursor:pointer; display:inline-block; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); } button.danger { color:var(--bad); }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .note { color:var(--mute); font-size:13px; margin:4px 0; } .warn { color:var(--bad); font-size:13px; }
+  .big { font-size:18px; font-weight:700; margin:4px 0; }
+  .pills { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; } .pill { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:4px 10px; font-size:13px; }
+  .score { margin-left:auto; padding:2px 10px; border-radius:999px; color:#fff; font-size:14px; } .score.good{background:var(--good)} .score.mid{background:var(--mid)} .score.bad{background:var(--bad)}
+  table.lifts { width:100%; border-collapse:collapse; font-size:14px; } table.lifts td { padding:6px 4px; border-top:1px solid var(--line); }
+  .chk { display:flex; gap:4px; align-items:center; margin:0; }
+  .row { padding:4px 0; } .row.done { text-decoration:line-through; color:var(--mute); } .row.current { color:var(--accent); }
+  .day.today { border-color:var(--accent); } .day { cursor:pointer; }
+  .spark { width:100%; height:120px; color:var(--accent); }
+  nav { position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); }
+  nav button { flex:1; border:0; border-radius:0; background:none; padding:12px 0; font-size:12px; color:var(--mute); }
+  nav button.active { color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+<header>IRON</header>
+<main id="main"></main>
+<nav>
+  <button data-view="today">📅<br>Today</button>
+  <button data-view="week">🗓️<br>Week</button>
+  <button data-view="body">⚖️<br>Body</button>
+  <button data-view="progress">📈<br>Progress</button>
+  <button data-view="settings">⚙️<br>Settings</button>
+</nav>
+<script src="app.js"></script>
+</body>
+</html>
