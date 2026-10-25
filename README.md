@@ -14,6 +14,14 @@ It adapts automatically: weekly volume follows completion and RPE, lift weights 
 
 Data is stored **only in your phone's browser**. Use Settings → Export for backups.
 
+## Claude coach 🤖
+The **Coach** tab sends your last 2 weeks of logs and the next 10 days of the plan to Claude for a weekly review or any question you ask. Claude replies with advice and suggested changes, and nothing changes until you tap **Apply**.
+
+- Get an API key at console.anthropic.com and paste it into **Settings → Claude coach**.
+- The key is stored only in this browser. It is **never committed to the repo** and is left out of exports.
+- The app calls the API straight from your phone, so it's for personal use only. Don't share your hosted link with the key saved on someone else's device.
+- Each request costs a few cents. Set a monthly spend limit in the Anthropic console.
+
 ## Possible next steps
 - Automatic Strava/Garmin import (needs a small backend for OAuth)
 - Heart-rate zones from a field test

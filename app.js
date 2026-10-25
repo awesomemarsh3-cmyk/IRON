@@ -31,6 +31,8 @@ const DEFAULTS = {
   weights: {},    // date -> bodyweight lb
   food: {},       // date -> {cal, protein}
   lifts: {},      // "Lift|scheme" -> {weight, fails}
+  overrides: {},  // sessionId -> {title, minutes, intensity, details, drop, reason} (from Claude coach)
+  coach: [],      // [{at, q, a}] recent coach conversations
 };
 let S = load();
 function load() {
@@ -266,8 +268,14 @@ function sessionsFor(k) {
       x.intensity = 'moderate'; x.minutes = Math.round((x.minutes * 0.75) / 5) * 5;
       x.notes.push('Low readiness: dropped hard → moderate, −25%.');
     }
+    const o = S.overrides[x.id];
+    if (o) {
+      if (o.drop) return null;
+      for (const f of ['title', 'minutes', 'intensity', 'details']) if (o[f] !== undefined && o[f] !== null && o[f] !== '') x[f] = o[f];
+      x.notes.push('🤖 Coach: ' + (o.reason || 'adjusted'));
+    }
     return x;
-  }).sort((a, b) => a.slot.localeCompare(b.slot));
+  }).filter(Boolean).sort((a, b) => a.slot.localeCompare(b.slot));
 }
 
 function readinessScore(k) {
@@ -325,6 +333,7 @@ function render() {
   if (view === 'body') el.innerHTML = renderBody();
   if (view === 'progress') el.innerHTML = renderProgress();
   if (view === 'settings') el.innerHTML = renderSettings();
+  if (view === 'coach') el.innerHTML = renderCoach();
 }
 
 function countdowns(k) {
@@ -460,6 +469,11 @@ function renderSettings() {
     ${Object.entries(st.oneRM).map(([n, v]) => `<label>${esc(n)}<input type="number" data-orm="${esc(n)}" value="${v}"></label>`).join('')}
     <button class="primary" onclick="saveSettings()">Save settings</button>
   </section>
+  <section class="card"><h3>Claude coach</h3>
+    <p>Paste your Anthropic API key (console.anthropic.com → API Keys). It's saved only on this device and is never included in exports.</p>
+    <input type="password" id="st-key" placeholder="sk-ant-..." value="${esc(getKey())}">
+    <div class="btns"><button onclick="saveKey()">Save key</button><button onclick="clearKey()">Remove key</button></div>
+  </section>
   <section class="card"><h3>Backup</h3>
     <p>Data is stored only on this phone/browser. Export a backup regularly.</p>
     <div class="btns"><button onclick="exportData()">Export</button><label class="btnlike">Import<input type="file" accept=".json" onchange="importData(this)" hidden></label>
@@ -526,3 +540,131 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => { view = b.dataset.view; if (view === 'today') cursor = cursor || todayKey(); render(); }));
   render();
 });
+
+// ---------- Claude coach ----------
+// Calls the Claude API directly from the browser with your own key (personal use only).
+const KEY_STORE = 'iron-apikey';
+const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.133.0/+esm';
+function getKey() { try { return localStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } }
+function saveKey() { try { localStorage.setItem(KEY_STORE, $('#st-key').value.trim()); alert('Key saved on this device'); } catch (e) { alert(e.message); } }
+function clearKey() { try { localStorage.removeItem(KEY_STORE); } catch (e) { /* ignore */ } render(); }
+
+const COACH_SYSTEM = `You are the personal coach for a 20-year-old male hybrid athlete (5'7", ~160 lb) who works 40-50 h/week.
+Priorities, in order: 1) win his first amateur Muay Thai fight, 2) build muscle, 3) finish IRONMAN 70.3 Musselman in an average time.
+History: 6 months Muay Thai, 5 years lifting, 5K ~27:00, torn meniscus ~4 years ago (protect the knee), sleeps ~6 h (push him toward 7.5-8 h).
+Muay Thai classes: Tue 6-7 PM, Thu 6-7 PM, Fri 7-8:30 PM. Work: Sun 10-5 (alternate weeks), Mon 9-8, Wed 12-8, Thu 9-5, Fri 9-6, Sat 9-6, Tue off.
+You receive his recent logs and upcoming plan as JSON. Give specific, practical coaching: what went well, what to change, and why.
+Only propose adjustments to upcoming sessions (today or later) using session ids that appear in "upcoming". Keep adjustments few and purposeful; it's fine to propose none.
+If he reports pain beyond normal soreness, a possible concussion, or illness, tell him to rest and see a doctor or physio.
+Keep the message under 250 words, plain text, friendly and direct.`;
+
+const COACH_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['message', 'adjustments'],
+  properties: {
+    message: { type: 'string' },
+    adjustments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['sessionId', 'action', 'reason', 'title', 'minutes', 'intensity', 'details', 'moveTo'],
+        properties: {
+          sessionId: { type: 'string' },
+          action: { type: 'string', enum: ['modify', 'drop', 'move'] },
+          reason: { type: 'string' },
+          title: { type: 'string', description: 'New title, or empty to keep' },
+          minutes: { type: 'integer', description: 'New duration, or 0 to keep' },
+          intensity: { type: 'string', enum: ['', 'easy', 'moderate', 'hard'] },
+          details: { type: 'string', description: 'New details, or empty to keep' },
+          moveTo: { type: 'string', description: 'YYYY-MM-DD for move, else empty' },
+        },
+      },
+    },
+  },
+};
+
+function coachContext() {
+  const t = todayKey(), recent = [], upcoming = [];
+  for (let i = -14; i < 0; i++) {
+    const d = addDays(t, i);
+    for (const s of sessionsFor(d)) {
+      const l = S.logs[s.id] || {};
+      recent.push({ date: d, title: s.title, type: s.type, planned: s.minutes, intensity: s.intensity, key: s.key, status: l.status || 'not logged', rpe: l.rpe, minutes: l.minutes, notes: l.notes, lifts: l.lifts });
+    }
+  }
+  for (let i = 0; i < 10; i++) {
+    const d = addDays(t, i);
+    for (const s of sessionsFor(d)) upcoming.push({ id: s.id, date: d, title: s.title, type: s.type, minutes: s.minutes, intensity: s.intensity, key: s.key, details: s.details });
+  }
+  const days = (obj) => Object.fromEntries(Object.entries(obj).filter(([k]) => k >= addDays(t, -14)));
+  return {
+    today: t, phase: phaseOf(t).name, fightDate: S.settings.fightDate, raceDate: S.settings.raceDate, fightWeightTarget: S.settings.fightWeight,
+    readiness: days(S.readiness), bodyweight: days(S.weights), food: days(S.food), nutritionTargetToday: nutritionTargets(t),
+    workingWeights: S.lifts, recent, upcoming,
+    previousCoachNotes: S.coach.slice(-3).map((c) => ({ at: c.at, question: c.q, answer: c.a })),
+  };
+}
+
+let coachBusy = false, coachPending = null;
+async function askCoach(weekly) {
+  const key = getKey();
+  if (!key) { alert('Add your API key in Settings first.'); return; }
+  const q = weekly ? 'Do my weekly review: how did the last 2 weeks go, and adjust the next few days if needed.' : $('#coach-q').value.trim();
+  if (!q) return;
+  coachBusy = true; render();
+  try {
+    const { default: Anthropic } = await import(SDK_URL);
+    const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
+    const response = await client.beta.messages.create({
+      model: 'claude-opus-5-5',
+      max_tokens: 16000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: COACH_SCHEMA } },
+      system: COACH_SYSTEM,
+      messages: [{ role: 'user', content: `My data:\n${JSON.stringify(coachContext())}\n\nMy question: ${q}` }],
+    });
+    if (response.stop_reason === 'refusal') throw new Error('Claude declined this request. Try rephrasing.');
+    if (response.stop_reason === 'max_tokens') throw new Error('The reply was cut off. Try again.');
+    const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const out = JSON.parse(text);
+    const ids = new Set(coachContext().upcoming.map((u) => u.id));
+    coachPending = (out.adjustments || []).filter((a) => ids.has(a.sessionId));
+    S.coach.push({ at: new Date().toISOString(), q, a: out.message });
+    S.coach = S.coach.slice(-20); save();
+  } catch (e) {
+    const status = e && e.status;
+    alert(status === 401 ? 'API key was rejected. Check it in Settings.' : status === 429 ? 'Rate limited or out of credits. Try again later.' : 'Coach error: ' + (e.message || e));
+  } finally { coachBusy = false; render(); }
+}
+
+function applyAdjustment(i) {
+  const a = coachPending[i];
+  if (a.action === 'move' && /^\d{4}-\d{2}-\d{2}$/.test(a.moveTo)) S.moves[a.sessionId] = a.moveTo;
+  else if (a.action === 'drop') S.overrides[a.sessionId] = { drop: true, reason: a.reason };
+  else S.overrides[a.sessionId] = { title: a.title, minutes: a.minutes || undefined, intensity: a.intensity, details: a.details, reason: a.reason };
+  coachPending.splice(i, 1); save(); render();
+}
+function undoCoach() { if (confirm('Remove all coach adjustments?')) { S.overrides = {}; save(); render(); } }
+
+function renderCoach() {
+  const last = S.coach[S.coach.length - 1];
+  const sessionName = (id) => { const d = id.split('#')[0]; const s = sessionsFor(d).find((x) => x.id === id) || baseSessions(d).find((x) => x.id === id); return s ? `${fmt(d)}: ${s.title}` : id; };
+  return `<h2>Coach 🤖</h2>
+  ${getKey() ? '' : '<section class="card"><p class="warn">Add your Anthropic API key in Settings to use the coach.</p></section>'}
+  <section class="card">
+    <button class="primary" ${coachBusy ? 'disabled' : ''} onclick="askCoach(true)">${coachBusy ? 'Thinking…' : 'Weekly review'}</button>
+    <label>Or ask anything (e.g. "my shin is bruised from sparring" or "work is slammed this week")
+      <textarea id="coach-q" rows="3"></textarea></label>
+    <button ${coachBusy ? 'disabled' : ''} onclick="askCoach(false)">Ask</button>
+  </section>
+  ${last ? `<section class="card"><h3>Latest advice</h3><small>${new Date(last.at).toLocaleString()} · "${esc(last.q)}"</small><p style="white-space:pre-wrap">${esc(last.a)}</p></section>` : ''}
+  ${coachPending && coachPending.length ? `<section class="card"><h3>Suggested changes</h3>${coachPending.map((a, i) => `
+    <div class="row"><b>${a.action}</b> ${esc(sessionName(a.sessionId))}${a.action === 'move' ? ' → ' + esc(a.moveTo) : ''}${a.action === 'modify' ? ` → ${esc(a.title || '')} ${a.minutes ? a.minutes + '′' : ''} ${esc(a.intensity || '')}` : ''}
+    <br><small>${esc(a.reason)}</small><br><button class="primary" onclick="applyAdjustment(${i})">Apply</button></div>`).join('')}</section>` : ''}
+  ${Object.keys(S.overrides).length ? `<section class="card"><p>${Object.keys(S.overrides).length} coach adjustment(s) active.</p><button onclick="undoCoach()">Undo all coach changes</button></section>` : ''}
+  <p class="note">Each request costs roughly a few cents on your Anthropic account.</p>`;
+}

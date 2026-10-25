@@ -22,7 +22,7 @@
   .daynav { display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:center; margin-top:4px; }
   .daynav button { font-size:22px; width:44px; height:44px; }
   label { display:block; font-size:12px; color:var(--mute); margin:6px 0; }
-  input[type=number], input[type=text], input[type=date] { width:100%; padding:10px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); }
+  input[type=number], input[type=text], input[type=date], input[type=password], textarea { width:100%; padding:10px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); }
   .lifts input[type=number] { width:80px; padding:6px; }
   .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; } .grid2, .logrow { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   @media (max-width:420px) { .grid4 { grid-template-columns:1fr 1fr; } }
@@ -51,6 +51,7 @@
   <button data-view="week">🗓️<br>Week</button>
   <button data-view="body">⚖️<br>Body</button>
   <button data-view="progress">📈<br>Progress</button>
+  <button data-view="coach">🤖<br>Coach</button>
   <button data-view="settings">⚙️<br>Settings</button>
 </nav>
 <script src="app.js"></script>
