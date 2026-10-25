@@ -36,17 +36,17 @@ Dates are computed from the fight and race dates in the app's Settings. These de
 Every 4th week of a block is a **deload** (about 70% volume) — except fight week, which has its own taper.
 
 ## Weekly template (built around your work schedule)
-Training windows: **early mornings** before 9 AM shifts, the **long Wednesday morning** (work starts at 12), **evenings after 5/6 PM** on Thu/Fri/Sat/working Sundays, and **Tuesday** plus off-Sundays as the big days. Muay Thai classes are assumed to be **Tue/Thu/Sat evenings**.
+Training windows: **early mornings** before 9 AM shifts, the **long Wednesday morning** (work starts at 12), **evenings after 5/6 PM** on Thu/Fri/Sat/working Sundays, and **Tuesday** plus off-Sundays as the big days. Muay Thai classes: **Tue 6–7 PM, Thu 6–7 PM, Fri 7–8:30 PM**. Indoor rides use the home spin bike (or the club's).
 
 ### Block 1 example
 | Day | AM | PM |
 |---|---|---|
 | Mon (9–8) | Upper lift (60′) | — |
-| Tue (off) | Long easy run | Muay Thai |
+| Tue (off) | Long easy run | Muay Thai (6–7) |
 | Wed (12–8) | Lower lift + technique swim | — |
-| Thu (9–5) | Easy bike (spin bike/trainer) | Muay Thai |
-| Fri (9–6) | Swim (aerobic) | Full-body lift |
-| Sat (9–6) | Easy run | Muay Thai |
+| Thu (9–5) | Easy spin (home bike) | Muay Thai (6–7) |
+| Fri (9–6) | Swim (aerobic) | Muay Thai (7–8:30) |
+| Sat (9–6) | Easy run | Full-body lift |
 | Sun work | Mobility / rest | — |
 | Sun off | Long bike or swim + run | — |
 
@@ -80,6 +80,13 @@ The app generates every day of every block automatically.
   - Base / Strength: **+250** (lean bulk, target +0.25–0.5 lb/week)
   - Fight Camp: **−300**, but *only* if above fight-weight target (target loss ≤ 1 lb/week)
   - Tri Build/Peak: maintenance, fuel long sessions (60–90 g carbs per hour on rides over 90′)
+- **Your staples:** meat, rice, eggs and fruit are already a great base. A day at ~3,000 kcal / 160 g protein could look like this:
+  - **Breakfast:** 4 eggs, 1 cup cooked rice or 2 slices toast, banana
+  - **Lunch:** 8 oz chicken or beef, 1.5 cups rice, vegetables
+  - **Pre-training:** fruit and yogurt, or rice cakes with honey
+  - **Dinner:** 8 oz meat or fish, rice or potatoes, vegetables
+  - **Before bed:** Greek yogurt or cottage cheese with berries
+  - In camp, trim rice portions first and keep protein the same. Long rides: bananas, rice cakes, sports drink.
 - **Weight class:** decide with your coach early in Block 2. Aim to walk around within about 5% of your fight weight by fight week. **No extreme dehydration cuts.** Many amateur weigh-ins are close to fight time, and dehydration is dangerous for your health and your performance.
 
 ## Recovery: the biggest lever you have ⚠️
@@ -87,8 +94,8 @@ The app generates every day of every block automatically.
 
 ## Open items to confirm
 - [ ] Exact fight date and weight class (ask your coach)
-- [ ] Exact race: the NY 70.3 in July is likely **IRONMAN 70.3 Musselman** (Geneva, NY, mid-July). Confirm and set the date in the app.
-- [ ] Winter bike plan: a smart trainer or the club's spin bikes from Nov to Mar
+- [x] Race: **IRONMAN 70.3 Musselman** (Geneva, NY). Confirm the exact 2027 date when registration opens and set it in the app (default Jul 11).
+- [x] Winter bike plan: home spin bike, plus the club's spin bikes
 - [ ] Open-water swims from May (lakes or ocean near Weymouth, never alone)
 - [ ] Bike fit before the Tri Build block
 - [ ] Get a doctor's sign-off for the fight medical
