@@ -42,7 +42,7 @@ function load() {
   } catch (e) { /* fall through */ }
   return structuredClone(DEFAULTS);
 }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { alert('Could not save: ' + e.message); } }
+function save(fromSync) { if (!fromSync) { S.updatedAt = Date.now(); schedulePush(); } try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { alert('Could not save: ' + e.message); } }
 
 // ---------- phases ----------
 function phases() {
@@ -474,6 +474,12 @@ function renderSettings() {
     <input type="password" id="st-key" placeholder="sk-ant-..." value="${esc(getKey())}">
     <div class="btns"><button onclick="saveKey()">Save key</button><button onclick="clearKey()">Remove key</button></div>
   </section>
+  <section class="card"><h3>Sync between devices</h3>
+    <p>Saves your data to a private GitHub Gist so your phone and laptop stay in sync. Create a token at github.com → Settings → Developer settings → Personal access tokens → <b>Tokens (classic)</b>, with only the <b>gist</b> scope. Paste the same token on each device.</p>
+    <input type="password" id="st-gh" placeholder="ghp_..." value="${esc(syncCfg().token || '')}">
+    <div class="btns"><button onclick="saveSyncToken()">Save token & sync</button><button onclick="syncNow()">Sync now</button><button onclick="clearSync()">Turn off</button></div>
+    <p class="note">${esc(syncStatus)}</p>
+  </section>
   <section class="card"><h3>Backup</h3>
     <p>Data is stored only on this phone/browser. Export a backup regularly.</p>
     <div class="btns"><button onclick="exportData()">Export</button><label class="btnlike">Import<input type="file" accept=".json" onchange="importData(this)" hidden></label>
@@ -539,6 +545,8 @@ function resetData() { if (confirm('Delete ALL data on this device?')) { S = str
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => { view = b.dataset.view; if (view === 'today') cursor = cursor || todayKey(); render(); }));
   render();
+  pullSync();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pullSync(); });
 });
 
 // ---------- Claude coach ----------
@@ -668,3 +676,66 @@ function renderCoach() {
   ${Object.keys(S.overrides).length ? `<section class="card"><p>${Object.keys(S.overrides).length} coach adjustment(s) active.</p><button onclick="undoCoach()">Undo all coach changes</button></section>` : ''}
   <p class="note">Each request costs roughly a few cents on your Anthropic account.</p>`;
 }
+
+// ---------- device sync (private GitHub Gist) ----------
+// Newest save wins: whichever copy has the later updatedAt replaces the other.
+const SYNC_STORE = 'iron-sync';
+const GIST_DESC = 'IRON training data (private)';
+const GIST_FILE = 'iron-data.json';
+let syncStatus = 'Sync is off.', pushTimer = null;
+function syncCfg() { try { return JSON.parse(localStorage.getItem(SYNC_STORE)) || {}; } catch (e) { return {}; } }
+function setSyncCfg(c) { try { localStorage.setItem(SYNC_STORE, JSON.stringify(c)); } catch (e) { /* ignore */ } }
+async function gh(path, opts = {}) {
+  const res = await fetch('https://api.github.com' + path, {
+    ...opts,
+    headers: { Authorization: 'Bearer ' + syncCfg().token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(res.status === 401 ? 'GitHub token was rejected' : 'GitHub error ' + res.status);
+  return res.json();
+}
+async function findGist() {
+  const c = syncCfg();
+  if (c.gistId) return c.gistId;
+  for (let page = 1; page <= 5; page++) {
+    const list = await gh(`/gists?per_page=100&page=${page}`);
+    const g = list.find((x) => x.description === GIST_DESC && x.files[GIST_FILE]);
+    if (g) { setSyncCfg({ ...c, gistId: g.id }); return g.id; }
+    if (list.length < 100) break;
+  }
+  return null;
+}
+async function pullSync() {
+  if (!syncCfg().token) return;
+  try {
+    syncStatus = 'Syncing…';
+    const id = await findGist();
+    if (!id) { await pushSync(); return; }
+    const g = await gh('/gists/' + id);
+    const f = g.files[GIST_FILE];
+    const text = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
+    const remote = JSON.parse(text);
+    if ((remote.updatedAt || 0) > (S.updatedAt || 0)) {
+      S = { ...structuredClone(DEFAULTS), ...remote, settings: { ...DEFAULTS.settings, ...remote.settings } };
+      save(true); render();
+    } else if ((remote.updatedAt || 0) < (S.updatedAt || 0)) {
+      await pushSync(); return;
+    }
+    syncStatus = 'Synced ' + new Date().toLocaleTimeString();
+  } catch (e) { syncStatus = 'Sync failed: ' + e.message; }
+  if (view === 'settings') render();
+}
+async function pushSync() {
+  if (!syncCfg().token) return;
+  try {
+    const body = JSON.stringify({ description: GIST_DESC, files: { [GIST_FILE]: { content: JSON.stringify(S) } } });
+    const id = await findGist();
+    if (id) await gh('/gists/' + id, { method: 'PATCH', body });
+    else { const g = await gh('/gists', { method: 'POST', body: JSON.stringify({ ...JSON.parse(body), public: false }) }); setSyncCfg({ ...syncCfg(), gistId: g.id }); }
+    syncStatus = 'Synced ' + new Date().toLocaleTimeString();
+  } catch (e) { syncStatus = 'Sync failed: ' + e.message; }
+  if (view === 'settings') render();
+}
+function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushSync, 2000); }
+function saveSyncToken() { setSyncCfg({ token: $('#st-gh').value.trim() }); pullSync(); }
+function syncNow() { pullSync(); }
+function clearSync() { try { localStorage.removeItem(SYNC_STORE); } catch (e) { /* ignore */ } syncStatus = 'Sync is off.'; render(); }

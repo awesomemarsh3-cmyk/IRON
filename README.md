@@ -12,7 +12,11 @@ A personal hybrid-training project: **first amateur Muay Thai fight (Mar/Apr 202
 
 It adapts automatically: weekly volume follows completion and RPE, lift weights progress or deload, low readiness scales the day down, knee pain swaps runs for bike sessions, and key sessions you miss can be rescheduled.
 
-Data is stored **only in your phone's browser**. Use Settings → Export for backups.
+Data is stored in your browser. To use it on more than one device, turn on **Settings → Sync between devices**:
+1. On GitHub, go to Settings → Developer settings → Personal access tokens → **Tokens (classic)** → Generate new token. Tick **only** the `gist` scope.
+2. Paste the token into the app on each device. Your data syncs to a private Gist named "IRON training data", and the newest save wins.
+
+Use Settings → Export for extra backups.
 
 ## Claude coach 🤖
 The **Coach** tab sends your last 2 weeks of logs and the next 10 days of the plan to Claude for a weekly review or any question you ask. Claude replies with advice and suggested changes, and nothing changes until you tap **Apply**.
